@@ -60,22 +60,16 @@ class Blip2Qformer(Blip2Base):
         self,
         
         modalities = ["image", "video"],
-        use_cues=True,
-        num_query_token=32,
-        qformer_text_input=True,
-        llm_text_input=False,
-        apply_lemmatizer=False,
         
         ## encoders
         vit_model="eva_clip_g",
-        video_vit_model="eva_clip_g",
         
         img_size=224,
         drop_path_rate=0,
         use_grad_checkpoint=False,
         vit_precision="fp32",
         freeze_vit=True,
-    
+        num_query_token=32,
         cross_attention_freq=2,
         embed_dim=256,
         max_txt_len=32,
@@ -113,17 +107,14 @@ class Blip2Qformer(Blip2Base):
         self.max_txt_len = max_txt_len
         self.num_query_token = num_query_token
         
-        # initialize modality encoders
-        
-        # init qformers
 
     def forward(self, samples):
 #         print('-----------------')
 #         print(samples["text_input"])
 #         print(samples.keys()) #['video', 'text_input', 'image_id', 'epoch', 'num_iters_per_epoch', 'iters'])
-#         # print(samples['video'].shape)
+#         print(samples['video'].shape)
 #         print(samples['image_id'])
-#         # print(samples["text_output"])
+#         print(samples["text_output"])
 #         print('-----------------')
         
         text = samples["text_input"]
@@ -156,17 +147,18 @@ class Blip2Qformer(Blip2Base):
             embeds = {}
             query_tokens = {}
             data_atts = {}
-            data = samples['video'] # batch, channel, frame, h, w
+            modality = 'video'
+            data = samples[modality] # batch, channel, frame, h, w
             # ln = self.ln_vision
             # encoder = self.visual_encoder
-            embeds['video'] = []
-            data_atts['video'] = []
+            embeds[modality] = []
+            data_atts[modality] = []
             
             for j in range(data.size(2)):
                 this_frame = data[:,:,j,:,:]
                 with self.maybe_autocast():
-                    embeds['video'].append(self.ln_vision(self.visual_encoder(this_frame)))
-                    data_atts['video'].append(torch.ones(embeds['video'][j].size()[:-1], dtype=torch.long).to(self.device))
+                    embeds[modality].append(self.ln_vision(self.visual_encoder(this_frame)))
+                    data_atts[modality].append(torch.ones(embeds[modality][j].size()[:-1], dtype=torch.long).to(self.device))
             
             # print(f'video embeds {embeds["video"][0]}')
             
@@ -176,7 +168,6 @@ class Blip2Qformer(Blip2Base):
 #             print(f'embeds video shape = {embeds["video"][0].size()}') # [5, 4, 257, 1408]
 #             print(f'data atts video shape = {data_atts["video"][0].size()}') # [5, 4, 257]
             
-            modality = 'video'
             num = len(embeds[modality]) # 5
             bs  = embeds[modality][0].shape[0] # 4
             indices = [j_+r for r,j in enumerate([[i*bs for i in range(num)]]*bs) for j_ in j]
