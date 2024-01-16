@@ -236,16 +236,21 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     vit_feats = []
     image_embeds = []
     for samples in data_loader:
-        image = samples["image"]
+        if 'image' in samples:
+            image = samples["image"]
 
-        image = image.to(model.device)
-        image_feat, vit_feat = model.forward_image(image)
+            image = image.to(model.device)
+            image_feat, vit_feat = model.forward_image(image)
+        else:
+            video = samples['video'].to(model.device) # batch, channel, frame, h, w
+            image_feat, vit_feat = model.forward_video(video)
+            
         image_embed = model.vision_proj(image_feat)
         image_embed = F.normalize(image_embed, dim=-1)
 
         vit_feats.append(vit_feat.cpu())
         image_embeds.append(image_embed)
-
+        
     vit_feats = torch.cat(vit_feats, dim=0)
     image_embeds = torch.cat(image_embeds, dim=0)
 
