@@ -201,19 +201,19 @@ def download_url(
         return download_file_from_google_drive(file_id, root, filename, md5)
 
     # download the file
-    try:
-        print("Downloading " + url + " to " + fpath)
-        _urlretrieve(url, fpath)
-    except (urllib.error.URLError, IOError) as e:  # type: ignore[attr-defined]
-        if url[:5] == "https":
-            url = url.replace("https:", "http:")
-            print(
-                "Failed download. Trying https -> http instead."
-                " Downloading " + url + " to " + fpath
-            )
-            _urlretrieve(url, fpath)
-        else:
-            raise e
+    # try:
+    #     print("Downloading " + url + " to " + fpath)
+    #     _urlretrieve(url, fpath)
+    # except (urllib.error.URLError, IOError) as e:  # type: ignore[attr-defined]
+    #     if url[:5] == "https":
+    #         url = url.replace("https:", "http:")
+    #         print(
+    #             "Failed download. Trying https -> http instead."
+    #             " Downloading " + url + " to " + fpath
+    #         )
+    #         _urlretrieve(url, fpath)
+    #     else:
+    #         raise e
 
     # check integrity of downloaded file
     if not check_integrity(fpath, md5):
@@ -234,7 +234,7 @@ def download_and_extract_archive(
     if not filename:
         filename = os.path.basename(url)
 
-    download_url(url, download_root, filename, md5)
+    # download_url(url, download_root, filename, md5)
 
     archive = os.path.join(download_root, filename)
     print("Extracting {} to {}".format(archive, extract_root))

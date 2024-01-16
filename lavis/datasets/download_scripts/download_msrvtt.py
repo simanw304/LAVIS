@@ -30,8 +30,8 @@ from lavis.common.utils import (
 # 3. Paste the link address to DATA_URL
 
 DATA_URL = {
-    "train": "https://download2295.mediafire.com/4bb7p74xrbgg/x3rrbe4hwp04e6w/train_val_videos.zip",
-    "test": "https://download2390.mediafire.com/79hfq3592lqg/czh8sezbo9s4692/test_videos.zip",
+    "train": "https://download2391.mediafire.com/tkr0eg9w827gMpy43D7KF52muER8y2E2J-4MpNPWFqQc0L6YggXLmb6_wNgd_nbwDc6swqxOpp27-yIZkg9TE_W11XvgrZPZBWkGdTxVydL75Nmcg-dswhg5OVHkio5QqrhRC0nOKSBalhM3qL46Q7fkW367CeNskfBBxnIAmLgk3UU/x3rrbe4hwp04e6w/train_val_videos.zip",
+    "test": "https://download2390.mediafire.com/bf5lgjxtlsag71PIZaKrRiZMaNsj9fwnvujaKxiJlI2wn0QpaRsP0PlFSFZt15r-6IPHVDkfk3a1bjt6OR64gwPPKXrUgg-aUhQd5TemqxiAwcWKqVABLOujNuGZgjP1_4_xLlrXRX-YbSHZaoi8tiH_iSU6bTc-W8aZx5p_oXm37KU/czh8sezbo9s4692/test_videos.zip",
 }
 
 
@@ -79,7 +79,9 @@ if __name__ == "__main__":
     ).datasets.msrvtt_cap.build_info.videos.storage
 
     download_dir = Path(get_cache_path(storage_dir)).parent / "download"
+    print(f'download_dir = {download_dir}')
     storage_dir = Path(get_cache_path(storage_dir))
+    print(f'storage_dir = {storage_dir}')
 
     if storage_dir.exists():
         print(f"Dataset already exists at {storage_dir}. Aborting.")
@@ -91,6 +93,7 @@ if __name__ == "__main__":
             download_datasets(download_dir, v)
     except Exception as e:
         # remove download dir if failed
+        print(e)
         cleanup_dir(download_dir)
         print("Failed to download or extracting datasets. Aborting.")
 
@@ -98,6 +101,7 @@ if __name__ == "__main__":
         merge_datasets(download_dir, storage_dir)
     except Exception as e:
         # remove storage dir if failed
+        print(e)
         cleanup_dir(download_dir)
         cleanup_dir(storage_dir)
         print("Failed to merging datasets. Aborting.")

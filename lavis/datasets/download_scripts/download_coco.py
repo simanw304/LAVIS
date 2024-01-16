@@ -4,6 +4,8 @@
  SPDX-License-Identifier: BSD-3-Clause
  For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
 """
+# import sys
+# sys.path.append('../../../lavis')
 
 import os
 from pathlib import Path
@@ -52,6 +54,7 @@ if __name__ == "__main__":
     except Exception as e:
         # remove download dir if failed
         cleanup_dir(download_dir)
+        print(e)
         print("Failed to download or extracting datasets. Aborting.")
 
     cleanup_dir(download_dir)

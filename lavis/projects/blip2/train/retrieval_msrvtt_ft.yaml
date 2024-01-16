@@ -1,0 +1,90 @@
+ # Copyright (c) 2022, salesforce.com, inc.
+ # All rights reserved.
+ # SPDX-License-Identifier: BSD-3-Clause
+ # For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+
+model:
+  arch: blip2
+  model_type: pretrain
+  load_pretrained: True
+  load_finetuned: False 
+  freeze_vit: False
+  
+  # pretrained_video_qformer: https://storage.googleapis.com/sfr-xinstructblip-data-research/model/xinstructblip_checkpoints/vicuna7b/image_qformer.pth
+  
+  # # finetune blip2 with clip-vit-large
+  # use_grad_checkpoint: False
+  # pretrained: "https://storage.googleapis.com/sfr-vision-language-research/LAVIS/models/BLIP2/blip2_pretrained_vitL.pth"
+  # vit_model: clip_L  
+
+datasets:
+  msrvtt_retrieval: #13260
+    # data_dir: ${env.data_dir}/datasets
+    data_type: videos # [images|videos|features]
+
+    vis_processor:
+      train:
+        name: alpro_video_train
+        n_frms: 3
+        image_size: 224
+        min_scale: 0.9
+        max_scale: 1.0
+        full_video: True
+      eval:
+        name: alpro_video_eval
+        n_frms: 3
+        image_size: 224
+        min_scale: 0.9
+        max_scale: 1.0
+        full_video: True
+    
+    text_processor:
+      train:
+        name: blip_caption
+      eval:
+        name: blip_caption
+
+    build_info:
+      annotations:
+        train:
+          storage: /home/jupyter/t2v/data/blip2_metadata_15k/train_15k.json
+        val:
+          storage: /home/jupyter/t2v/data/blip2_metadata_15k/val_1k.json
+        test:
+          storage: /home/jupyter/t2v/data/blip2_metadata_15k/test_1k.json
+      videos:
+        storage: '/home/jupyter/t2v/data/video/'
+
+run:
+  task: retrieval
+  # optimizer
+  lr_sched: "linear_warmup_cosine_lr"
+  init_lr: 1e-5
+  min_lr: 0
+  warmup_lr: 1e-8
+  warmup_steps: 1000
+  weight_decay: 0.05
+  max_epoch: 100
+  batch_size_train: 4
+  batch_size_eval: 1
+  lr_layer_decay: 0.95 # layer-wise learning rate decay for the ViT 
+  num_workers: 2
+  accum_grad_iters: 1
+
+  seed: 42
+  output_dir: "output/BLIP2/spotlight_ret"
+
+  amp: True
+  resume_ckpt_path: null
+
+  evaluate: False
+  train_splits: ["train"]
+  valid_splits: ["val"]
+  test_splits: ["test"]
+  k_test: 128
+
+  device: "cuda"
+  world_size: 1
+  dist_url: "env://"
+  distributed: True
+  use_dist_eval_sampler: False

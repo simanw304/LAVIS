@@ -321,7 +321,10 @@ def head_tail_frame_sampling(video_path, num_frames, target_height, target_width
     if start_time is None:
         start_time = 0
     if end_time is None:
-        end_time = total_frames / frame_rate
+        try:
+            end_time = total_frames / frame_rate
+        except Exception as e:
+            print(video_path)
 
     start_frame = int(start_time * frame_rate)
     end_frame = int(end_time * frame_rate)
