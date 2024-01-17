@@ -188,11 +188,12 @@ class Blip2Qformer(Blip2Base):
             # print(f'query_output last_hidden_state shape = {query_output.last_hidden_state.size()}') # ([20, 32, 768]) -> 4, 5x32, 768?
 
             # query_output.last_hidden_state = query_output.clone().last_hidden_state.reshape(bs, num*self.num_query_token, -1)
-            image_embeds = reordered_embeds.reshape(bs, num*reordered_embeds.clone().size()[1], -1)
+            patch_size = reordered_embeds.size()[1]
+            image_embeds = reordered_embeds.reshape(bs, num, patch_size, -1).contiguous().view(bs, num*patch_size, -1)
             
             # print(f'image_embeds shape = {image_embeds.size()}') # [4, 5*257, 1408]
             image_feats = F.normalize(
-                self.vision_proj(query_output.last_hidden_state.reshape(bs, num*self.num_query_token, -1)), dim=-1
+                self.vision_proj(query_output.last_hidden_state.reshape(bs, num, self.num_query_token, -1).contiguous().view(bs, num*self.num_query_token, -1)), dim=-1
             )
             
             # print(f'image_feats shape = {image_feats.size()}') # [4, 160, 256]
@@ -554,7 +555,8 @@ class Blip2Qformer(Blip2Base):
         # print(f'query_output last_hidden_state shape = {query_output.last_hidden_state.size()}') # ([20, 32, 768]) -> 4, 5x32, 768?
 
         # query_output.last_hidden_state = query_output.clone().last_hidden_state.reshape(bs, num*self.num_query_token, -1)
-        image_embeds = reordered_embeds.reshape(bs, num*reordered_embeds.clone().size()[1], -1)
+        patch_size = reordered_embeds.size()[1]
+        image_embeds = reordered_embeds.reshape(bs, num, patch_size, -1).contiguous().view(bs, num*patch_size, -1)
 
         # print(f'image_embeds shape = {image_embeds.size()}') # [4, 5*257, 1408]
         # image_feats = F.normalize(
@@ -562,7 +564,7 @@ class Blip2Qformer(Blip2Base):
         # )
 
         # print(f'image_feats shape = {image_feats.size()}') # [4, 160, 256]
-        return query_output.last_hidden_state.reshape(bs, num*self.num_query_token, -1), image_embeds
+        return query_output.last_hidden_state.reshape(bs, num, self.num_query_token, -1).contiguous().view(bs, num*self.num_query_token, -1), image_embeds
 
     def forward_text(self, text_tokens):
         text_output = self.Qformer.bert(
