@@ -9,6 +9,7 @@ model:
   load_pretrained: True
   load_finetuned: False 
   freeze_vit: False
+  max_txt_len: 250
   
   # pretrained_video_qformer: https://storage.googleapis.com/sfr-xinstructblip-data-research/model/xinstructblip_checkpoints/vicuna7b/image_qformer.pth
   
@@ -41,13 +42,15 @@ datasets:
     text_processor:
       train:
         name: blip_caption
+        max_words: 250
       eval:
         name: blip_caption
+        max_words: 250
 
     build_info:
       annotations:
         train:
-          storage: /home/jupyter/t2v/data/blip2_metadata_15k/train_15k.json
+          storage: /home/jupyter/t2v/data/blip2_metadata_15k/train_15k_original_caption.json
         val:
           storage: /home/jupyter/t2v/data/blip2_metadata_15k/val_1k.json
         test:
@@ -56,6 +59,7 @@ datasets:
         storage: '/home/jupyter/t2v/data/video/'
 
 run:
+  # runner: runner_iter
   task: retrieval
   # optimizer
   lr_sched: "linear_warmup_cosine_lr"
@@ -64,13 +68,16 @@ run:
   warmup_lr: 1e-8
   warmup_steps: 1000
   weight_decay: 0.05
-  max_epoch: 100
+  max_epoch: 25
   batch_size_train: 4
   batch_size_eval: 1
-  lr_layer_decay: 0.95 # layer-wise learning rate decay for the ViT 
+  # lr_layer_decay: 0.95 # layer-wise learning rate decay for the ViT 
   num_workers: 2
   accum_grad_iters: 1
+  # max_iters: 20000
+  # iters_per_inner_epoch: 1000
 
+  max_len: 250
   seed: 42
   output_dir: "output/BLIP2/spotlight_ret"
 

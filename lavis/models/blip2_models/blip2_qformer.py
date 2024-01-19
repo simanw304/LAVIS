@@ -711,7 +711,6 @@ class Blip2Qformer(Blip2Base):
             text_features = F.normalize(text_features, dim=-1)
 
         elif mode == "multimodal":
-            # TODO: probably need to debug this section!!!
             # return multimodel query features
             if image is not None:
                 with self.maybe_autocast():
@@ -755,7 +754,7 @@ class Blip2Qformer(Blip2Base):
                 num = len(embeds) # 5
                 bs  = embeds[0].shape[0] # 4
                 indices = [j_+r for r,j in enumerate([[i*bs for i in range(num)]]*bs) for j_ in j]
-                reordered_embeds = torch.cat(embeds)[indices]
+                reordered_embeds = torch.cat(embeds)[indices] #([20, 257, 1408])
                 reordered_atts = torch.cat(data_atts)[indices]
 
                 query_tokens = self.query_tokens.expand(video.shape[0], -1, -1)
@@ -777,7 +776,7 @@ class Blip2Qformer(Blip2Base):
                     return_dict=True,
                 )
 
-                multimodal_embeds = output.last_hidden_state.reshape(bs, num*self.num_query_token, -1)[:, : query_tokens.size(1), :]
+                multimodal_embeds = output.last_hidden_state[:, : query_tokens.size(1), :].reshape(bs, num*self.num_query_token, -1)
 
         return BlipOutputFeatures(
             image_embeds=image_embeds,
