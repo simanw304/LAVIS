@@ -11,8 +11,7 @@ model:
   use_grad_checkpoint: False
   freeze_vit: False
   max_txt_len: 250
-  # finetuned: "/nfs/swang7/dev/0116/LAVIS/lavis/output/BLIP2/spotlight_ret/20240117052/checkpoint_0.pth"
-  
+
   # pretrained_video_qformer: https://storage.googleapis.com/sfr-xinstructblip-data-research/model/xinstructblip_checkpoints/vicuna7b/image_qformer.pth
   
   # # finetune blip2 with clip-vit-large

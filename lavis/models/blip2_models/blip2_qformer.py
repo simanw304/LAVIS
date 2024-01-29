@@ -487,6 +487,7 @@ class Blip2Qformer(Blip2Base):
 #             print(f'embeds video shape = {embeds["video"][0].size()}') # [5, 4, 257, 1408]
 #             print(f'data atts video shape = {data_atts["video"][0].size()}') # [5, 4, 257]
             # query_tokens = query_tokens.repeat(num, 1, 1)
+
             
             if not use_nucleus_sampling:
                 reordered_embeds = reordered_embeds.repeat_interleave(num_beams, dim=0) #(20, 257, 1408) -> (20*num_beams, 257, 1408)
