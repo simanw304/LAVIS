@@ -40,6 +40,7 @@ class Blip2Qformer(Blip2Base):
         "pretrain": "configs/models/blip2/blip2_pretrain.yaml",
         "pretrain_vitL": "configs/models/blip2/blip2_pretrain_vitL.yaml",
         "coco": "configs/models/blip2/blip2_coco.yaml",
+        "spotlight": "configs/models/blip2/blip2_spotlight.yaml",
     }
     
     SEQUENCIAL_ENCODERS = [
@@ -113,8 +114,8 @@ class Blip2Qformer(Blip2Base):
 #         print(samples["text_input"])
 #         print(samples.keys()) #['video', 'text_input', 'image_id', 'epoch', 'num_iters_per_epoch', 'iters'])
 #         print(samples['video'].shape)
-#         print(samples['image_id'])
-#         print(samples["text_output"])
+        # print(samples['image_id'])
+        # print(samples["text_input"])
 #         print('-----------------')
         
         text = samples["text_input"]
@@ -173,10 +174,12 @@ class Blip2Qformer(Blip2Base):
             indices = [j_+r for r,j in enumerate([[i*bs for i in range(num)]]*bs) for j_ in j]
             reordered_embeds = torch.cat(embeds[modality])[indices]
             reordered_atts = torch.cat(data_atts[modality])[indices]
+            # reordered_embeds = torch.cat(embeds[modality])
+            # reordered_atts = torch.cat(data_atts[modality])
             
 #             print(f'reordered_embeds video shape = {reordered_embeds.size()}') # ([20, 257, 1408]) batch*frame, 
 #             print(f'reordered_atts video shape = {reordered_atts.size()}') # [20, 257])
-            
+
             query_output = self.Qformer.bert(
                 query_embeds=query_tokens.repeat(num, 1, 1),
                 encoder_hidden_states=reordered_embeds,
@@ -188,16 +191,17 @@ class Blip2Qformer(Blip2Base):
             # print(f'query_output last_hidden_state shape = {query_output.last_hidden_state.size()}') # ([20, 32, 768]) -> 4, 5x32, 768?
 
             # query_output.last_hidden_state = query_output.clone().last_hidden_state.reshape(bs, num*self.num_query_token, -1)
-            image_embeds = reordered_embeds.reshape(bs, num*reordered_embeds.clone().size()[1], -1)
+            patch_size = reordered_embeds.size()[1]
+            image_embeds = reordered_embeds.reshape(bs, num, patch_size, -1).contiguous().view(bs, num*patch_size, -1)
             
             # print(f'image_embeds shape = {image_embeds.size()}') # [4, 5*257, 1408]
             image_feats = F.normalize(
-                self.vision_proj(query_output.last_hidden_state.reshape(bs, num*self.num_query_token, -1)), dim=-1
+                self.vision_proj(query_output.last_hidden_state.reshape(bs, num, self.num_query_token, -1).contiguous().view(bs, num*self.num_query_token, -1)), dim=-1
             )
             
             # print(f'image_feats shape = {image_feats.size()}') # [4, 160, 256]
             
-
+        
         text_tokens = self.tokenizer(
             text,
             padding="max_length",
@@ -456,20 +460,45 @@ class Blip2Qformer(Blip2Base):
                 with self.maybe_autocast():
                     image_embeds = self.ln_vision(self.visual_encoder(this_frame))
                     image_atts = (torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(self.device))
-                    if not use_nucleus_sampling:
-                        image_embeds = image_embeds.repeat_interleave(num_beams, dim=0) #(4, 257, 1408) -> (12, 257, 1408)
-                    else:
-                        num_beams = 1
                     embeds.append(image_embeds)
                     data_atts.append(image_atts)          
-                    
+            
             num = len(embeds) # 5
             bs  = embeds[0].shape[0] # 4
             indices = [j_+r for r,j in enumerate([[i*bs for i in range(num)]]*bs) for j_ in j]
             reordered_embeds = torch.cat(embeds)[indices]
             reordered_atts = torch.cat(data_atts)[indices]
+            # reordered_embeds = torch.cat(embeds)
+            # reordered_atts = torch.cat(data_atts)
+            patch_size = reordered_embeds.size()[1]
+            reordered_embeds = reordered_embeds.reshape(bs, num, patch_size, -1).contiguous().view(bs, num*patch_size, -1)
+            reordered_atts = reordered_atts.reshape(bs, num, patch_size).contiguous().view(bs, num*patch_size)
+            
+            input_ids = (
+                torch.LongTensor(data.size(0), 1)
+                .fill_(self.tokenizer.bos_token_id)
+                .to(self.device)
+            )
+            # input_ids = input_ids.repeat(num, 1)
+            
+            # B, Token Size, LM EMB
+            query_tokens = self.query_tokens.expand(data.shape[0], -1, -1)
+#             print(f'query_tokens shape = {query_tokens.size()}') # batch, query dim 32, emb (4, 32, 768)
+#             print(f'embeds video shape = {embeds["video"][0].size()}') # [5, 4, 257, 1408]
+#             print(f'data atts video shape = {data_atts["video"][0].size()}') # [5, 4, 257]
+            # query_tokens = query_tokens.repeat(num, 1, 1)
+            
+            if not use_nucleus_sampling:
+                reordered_embeds = reordered_embeds.repeat_interleave(num_beams, dim=0) #(20, 257, 1408) -> (20*num_beams, 257, 1408)
+                reordered_atts = reordered_atts.repeat_interleave(num_beams, dim=0)
+                # input_ids = input_ids.repeat_interleave(num_beams, dim=0)
+                query_tokens = query_tokens.repeat_interleave(num_beams, dim=0)
+            else:
+                num_beams = 1
+                
                                   
-            print(f'reordered_embeds shape = {reordered_embeds.shape}')
+            # print(f'reordered_embeds shape = {reordered_embeds.shape}')
+            # print(reordered_embeds[0][0])
             
             
             model_kwargs = {
@@ -479,21 +508,9 @@ class Blip2Qformer(Blip2Base):
 #             print(f'reordered_embeds video shape = {reordered_embeds.size()}') # ([20, 257, 1408]) batch*frame, 
 #             print(f'reordered_atts video shape = {reordered_atts.size()}') # [20, 257])
             
-            input_ids = (
-                torch.LongTensor(data.size(0), 1)
-                .fill_(self.tokenizer.bos_token_id)
-                .to(self.device)
-            )
-            # B, Token Size, LM EMB
-            query_tokens = self.query_tokens.expand(data.shape[0], -1, -1)
-#             print(f'query_tokens shape = {query_tokens.size()}') # batch, query dim 32, emb (4, 32, 768)
-#             print(f'embeds video shape = {embeds["video"][0].size()}') # [5, 4, 257, 1408]
-#             print(f'data atts video shape = {data_atts["video"][0].size()}') # [5, 4, 257]
-            
-            
             outputs = self.Qformer.generate(
-                input_ids=input_ids.repeat(num, 1),
-                query_embeds=query_tokens.repeat(num, 1, 1),
+                input_ids=input_ids,
+                query_embeds=query_tokens,
                 max_length=max_length,
                 min_length=min_length,
                 num_beams=num_beams,
@@ -554,7 +571,8 @@ class Blip2Qformer(Blip2Base):
         # print(f'query_output last_hidden_state shape = {query_output.last_hidden_state.size()}') # ([20, 32, 768]) -> 4, 5x32, 768?
 
         # query_output.last_hidden_state = query_output.clone().last_hidden_state.reshape(bs, num*self.num_query_token, -1)
-        image_embeds = reordered_embeds.reshape(bs, num*reordered_embeds.clone().size()[1], -1)
+        patch_size = reordered_embeds.size()[1]
+        image_embeds = reordered_embeds.reshape(bs, num, patch_size, -1).contiguous().view(bs, num*patch_size, -1)
 
         # print(f'image_embeds shape = {image_embeds.size()}') # [4, 5*257, 1408]
         # image_feats = F.normalize(
@@ -562,7 +580,7 @@ class Blip2Qformer(Blip2Base):
         # )
 
         # print(f'image_feats shape = {image_feats.size()}') # [4, 160, 256]
-        return query_output.last_hidden_state.reshape(bs, num*self.num_query_token, -1), image_embeds
+        return query_output.last_hidden_state.reshape(bs, num, self.num_query_token, -1).contiguous().view(bs, num*self.num_query_token, -1), image_embeds
 
     def forward_text(self, text_tokens):
         text_output = self.Qformer.bert(
@@ -709,7 +727,6 @@ class Blip2Qformer(Blip2Base):
             text_features = F.normalize(text_features, dim=-1)
 
         elif mode == "multimodal":
-            # TODO: probably need to debug this section!!!
             # return multimodel query features
             if image is not None:
                 with self.maybe_autocast():
@@ -753,7 +770,7 @@ class Blip2Qformer(Blip2Base):
                 num = len(embeds) # 5
                 bs  = embeds[0].shape[0] # 4
                 indices = [j_+r for r,j in enumerate([[i*bs for i in range(num)]]*bs) for j_ in j]
-                reordered_embeds = torch.cat(embeds)[indices]
+                reordered_embeds = torch.cat(embeds)[indices] #([20, 257, 1408])
                 reordered_atts = torch.cat(data_atts)[indices]
 
                 query_tokens = self.query_tokens.expand(video.shape[0], -1, -1)
@@ -775,7 +792,7 @@ class Blip2Qformer(Blip2Base):
                     return_dict=True,
                 )
 
-                multimodal_embeds = output.last_hidden_state.reshape(bs, num*self.num_query_token, -1)[:, : query_tokens.size(1), :]
+                multimodal_embeds = output.last_hidden_state[:, : query_tokens.size(1), :].reshape(bs, num*self.num_query_token, -1)
 
         return BlipOutputFeatures(
             image_embeds=image_embeds,

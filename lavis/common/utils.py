@@ -199,6 +199,8 @@ def download_url(
     file_id = _get_google_drive_file_id(url)
     if file_id is not None:
         return download_file_from_google_drive(file_id, root, filename, md5)
+    
+    print(f'call downloading for {url}')
 
     # download the file
     # try:

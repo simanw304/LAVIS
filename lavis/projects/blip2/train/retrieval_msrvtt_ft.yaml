@@ -8,7 +8,10 @@ model:
   model_type: pretrain
   load_pretrained: True
   load_finetuned: False 
+  use_grad_checkpoint: False
   freeze_vit: False
+  max_txt_len: 250
+  # finetuned: "/nfs/swang7/dev/0116/LAVIS/lavis/output/BLIP2/spotlight_ret/20240117052/checkpoint_0.pth"
   
   # pretrained_video_qformer: https://storage.googleapis.com/sfr-xinstructblip-data-research/model/xinstructblip_checkpoints/vicuna7b/image_qformer.pth
   
@@ -25,37 +28,38 @@ datasets:
     vis_processor:
       train:
         name: alpro_video_train
-        n_frms: 3
+        n_frms: 5
         image_size: 224
         min_scale: 0.9
         max_scale: 1.0
         full_video: True
       eval:
         name: alpro_video_eval
-        n_frms: 3
+        n_frms: 5
         image_size: 224
-        min_scale: 0.9
-        max_scale: 1.0
         full_video: True
     
     text_processor:
       train:
         name: blip_caption
+        max_words: 250
       eval:
         name: blip_caption
+        max_words: 250
 
     build_info:
       annotations:
         train:
-          storage: /home/jupyter/t2v/data/blip2_metadata_15k/train_15k.json
+          storage: /nfs/swang7/blip2_finetune_metadata/train_31k.json
         val:
-          storage: /home/jupyter/t2v/data/blip2_metadata_15k/val_1k.json
+          storage: /nfs/swang7/blip2_finetune_metadata/val_1k.json
         test:
-          storage: /home/jupyter/t2v/data/blip2_metadata_15k/test_1k.json
+          storage: /nfs/swang7/blip2_finetune_metadata/test_1k.json
       videos:
-        storage: '/home/jupyter/t2v/data/video/'
+        storage: /nfs/swang7/17k_videos/
 
 run:
+  runner: runner_iter
   task: retrieval
   # optimizer
   lr_sched: "linear_warmup_cosine_lr"
@@ -64,15 +68,18 @@ run:
   warmup_lr: 1e-8
   warmup_steps: 1000
   weight_decay: 0.05
-  max_epoch: 100
-  batch_size_train: 4
-  batch_size_eval: 1
-  lr_layer_decay: 0.95 # layer-wise learning rate decay for the ViT 
-  num_workers: 2
+  max_epoch: 30
+  batch_size_train: 8
+  batch_size_eval: 4
+  # lr_layer_decay: 0.95 # layer-wise learning rate decay for the ViT 
+  num_workers: 8
   accum_grad_iters: 1
+  max_iters: 30000
+  iters_per_inner_epoch: 1000
 
+  max_len: 250
   seed: 42
-  output_dir: "output/BLIP2/spotlight_ret"
+  output_dir: "output/BLIP2/spotlight_ret_debug"
 
   amp: True
   resume_ckpt_path: null

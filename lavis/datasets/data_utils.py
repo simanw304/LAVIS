@@ -308,9 +308,13 @@ def uniform_frame_sampling(video_path, num_frames, target_height, target_width, 
             break
         frame = cv2.resize(frame, (target_width, target_height))
         frames.append(frame)
+        if len(frames) == num_frames:
+            break
 
     cap.release()
-    return frames
+    if len(frames) == 0:
+        return None
+    return torch.stack([torch.tensor(f).permute(2,0,1).float() for f in frames], dim=1)
 
 
 def head_tail_frame_sampling(video_path, num_frames, target_height, target_width, start_time=None, end_time=None):
